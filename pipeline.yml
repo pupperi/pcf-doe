@@ -1,0 +1,673 @@
+resource_types:
+- name: pivnet
+  type: docker-image
+  source:
+    repository: pivotalcf/pivnet-resource
+    tags: latest-final
+
+resources:
+- name: config-private
+  type: git
+  source:
+    uri: ((github.uri))
+    branch: master
+    private_key: ((github.key))
+
+- name: opsman-product
+  type: pivnet
+  source:
+    api_token: ((pivnet_token))
+    product_slug: ((opsman_product_slug))
+    product_version: ((opsman_major_minor_version))
+    sort_by: semver
+    
+- name: pas-product
+  type: pivnet
+  source:
+    api_token: ((pivnet_token))
+    product_slug: ((pas_product_slug))
+    product_version: ((pas_product_version))
+
+- name: pas-stemcell
+  type: pivnet
+  source:
+    api_token: ((pivnet_token))
+    product_slug: ((pas_stemcell_slug))
+    product_version: ((pas_stemcell_version))
+    version: {ref: ((pas_product_stemcell_glob))}
+    regexp: ((pas_product_stemcell_glob))
+
+- name: pcf-healthwatch-product
+  type: pivnet
+  source:
+    api_token: ((pivnet_token))
+    product_slug: ((healthwatch_product_slug))
+    product_version: ((healthwatch_product_version))
+
+- name: pcf-healthwatch-stemcell
+  type: pivnet
+  source:
+    api_token: ((pivnet_token))
+    product_slug: ((healthwatch_stemcell_slug))
+    product_version: ((healthwatch_stemcell_version))
+    version: {ref: ((healthwatch_product_stemcell_glob))}
+    regexp: ((healthwatch_product_stemcell_glob))
+
+- name: pcf-metrics-product
+  type: pivnet
+  source:
+    api_token: ((pivnet_token))
+    product_slug: ((metrics_product_slug))
+    product_version: ((metrics_product_version))
+
+- name: spring-cloud-services-product
+  type: pivnet
+  source:
+    api_token: ((pivnet_token))
+    product_slug: ((scs_product_slug))
+    product_version: ((scs_product_version))
+
+- name: pas-windows-product
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: pas-windows-(.*).build.1.output.pivotal 
+
+- name: pas-windows-stemcell
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: bosh-stemcell-(1803.11)-vsphere.*\.tgz
+
+- name: platform-automation-image
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: platform-automation-image-(.*).tgz
+
+- name: platform-automation-tasks
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: platform-automation-tasks-(.*).zip
+
+jobs:
+- name: install-opsman
+  plan:
+    - in_parallel:
+        - get: platform-automation-image
+          params:
+            globs: ["*.tgz"]
+            unpack: true
+        - get: platform-automation-tasks
+          params:
+            globs: ["*.zip"]
+            unpack: true
+        - get: opsman-product
+          params:
+            globs: ["*.ova"]
+        - get: config-private
+    - task: create-vm
+      image: platform-automation-image
+      file: platform-automation-tasks/tasks/create-vm.yml
+      input_mapping:
+        image: opsman-product
+        state: config-private
+        config: config-private
+      params:
+        OPSMAN_opsman_vcenter_url: ((opsman_vcenter_url))
+        OPSMAN_opsman_vcenter_username: ((opsman_vcenter_username))
+        OPSMAN_opsman_vcenter_password: ((opsman_vcenter_password))
+        OPSMAN_opsman_vcenter_datastore: ((opsman_vcenter_datastore))
+        OPSMAN_opsman_vcenter_datacenter: ((opsman_vcenter_datacenter))
+        OPSMAN_opsman_vcenter_resource_pool: ((opsman_vcenter_resource_pool))
+        OPSMAN_opsman_vcenter_insecure: ((opsman_vcenter_insecure))
+        OPSMAN_opsman_vcenter_disk_type: ((opsman_vcenter_disk_type))
+        OPSMAN_opsman_vcenter_private_ip: ((opsman_vcenter_private_ip))
+        OPSMAN_opsman_vcenter_dns: ((opsman_vcenter_dns))
+        OPSMAN_opsman_vcenter_ntp: ((opsman_vcenter_ntp))
+        OPSMAN_opsman_vcenter_ssh_password: ((opsman_vcenter_ssh_password))
+        OPSMAN_opsman_vcenter_opsmgr_hostname: ((opsman_vcenter_opsmgr_hostname))
+        OPSMAN_opsman_vcenter_network: ((opsman_vcenter_network))
+        OPSMAN_opsman_vcenter_netmask: ((opsman_vcenter_netmask))
+        OPSMAN_opsman_vcenter_gateway: ((opsman_vcenter_gateway))
+        OPSMAN_opsman_vcenter_vm_name: ((opsman_vcenter_vm_name))
+        CONFIG_FILE: config/opsman-config.yml
+        VARS_FILES: config/vars/opsman-vars.yml
+    - task: configure-authentication
+      image: platform-automation-image
+      file: platform-automation-tasks/tasks/configure-authentication.yml
+      input_mapping:
+        config: config-private
+        env: config-private
+      params:
+        ENV_FILE: env/ops-man-env.yml
+        AUTH_CONFIG_FILE: vars/auth.yml
+      attempts: 20
+
+- name: configure-director
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      passed: [install-opsman]
+      trigger: true
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+    - get: platform-automation-tasks
+      params:
+        globs: ["*.zip"]
+        unpack: true
+    - get: config-private
+  - task: configure-director
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/configure-director.yml
+    input_mapping:
+      config: config-private
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+      DIRECTOR_CONFIG_FILE: config/director-config.yml
+      VARS_FILES: config/vars/bosh-vars.yml
+      BOSH_bosh_ntp_servers: ((bosh_ntp_servers))
+      BOSH_bosh_dns_servers: ((bosh_dns_servers))
+      BOSH_bosh_disk_path: ((bosh_disk_path))
+      BOSH_bosh_template_folder: ((bosh_template_folder))
+      BOSH_bosh_vm_folder: ((bosh_vm_folder))
+      BOSH_bosh_datacenter: ((bosh_datacenter))
+      BOSH_bosh_disk_type: ((bosh_disk_type))
+      BOSH_bosh_ephemeral_datastores_string: ((bosh_ephemeral_datastores_string))
+      BOSH_bosh_nsx_address: ((bosh_nsx_address))
+      BOSH_bosh_nsx_ca_certificate: ((bosh_nsx_ca_certificate))
+      BOSH_bosh_nsx_mode: ((bosh_nsx_mode))
+      BOSH_bosh_nsx_networking_enabled: ((bosh_nsx_networking_enabled))
+      BOSH_bosh_nsx_username: ((bosh_nsx_username))
+      BOSH_bosh_nsx_password: ((bosh_nsx_password))
+      BOSH_bosh_persistent_datastores_string: ((bosh_persistent_datastores_string))
+      BOSH_bosh_ssl_verification_enabled: ((bosh_ssl_verification_enabled))
+      BOSH_bosh_vcenter_host: ((bosh_vcenter_host))
+      BOSH_bosh_vcenter_username: ((bosh_vcenter_username))
+      BOSH_bosh_vcenter_password: ((bosh_vcenter_password))
+      BOSH_bosh_opsman_trusted_certificate: ((bosh_opsman_trusted_certificate))
+
+- name: apply-changes-director
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      trigger: true
+      passed: [configure-director]
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: config-private
+  - task: apply-director-changes
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/apply-director-changes.yml
+    input_mapping:
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: upload-pas
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      trigger: true
+      passed: [apply-changes-director]
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: pas-product
+      params:
+        globs: ["cf*.pivotal"]
+    - get: config-private
+
+  - task: upload-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/upload-product.yml
+    input_mapping:
+      product: pas-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+  - task: stage-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/stage-product.yml
+    input_mapping:
+      product: pas-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: upload-stemcell-pas
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      passed: [upload-pas]
+      trigger: true
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: config-private
+    - get: pas-stemcell
+      params:
+        globs: [((pas_product_stemcell_glob))]
+  - task: upload-stemcell
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/upload-stemcell.yml
+    input_mapping:
+      env: config-private
+      stemcell: pas-stemcell
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: configure-pas
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      passed: [upload-stemcell-pas]
+      trigger: true
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: config-private
+  - task: configure-pas
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/configure-pas.yml
+    input_mapping:
+      config: config-private
+      env: config-private
+    params:
+      CONFIG_FILE: config/pas-config.yml
+      ENV_FILE: env/ops-man-env.yml
+      VARS_FILES: config/vars/pas-vars.yml
+      PAS_pas_product_slug: ((pas_product_slug))
+      PAS_pas_product_version: ((pas_product_version))
+      PAS_pas_apps_domain: ((pas_apps_domain))
+      PAS_pas_system_domain: ((pas_system_domain))
+      PAS_pas_cni_plugin: ((pas_cni_plugin))
+      PAS_pas_credhub_database: ((pas_credhub_database))
+      PAS_pas_uaa_database: ((pas_uaa_database))
+      PAS_pas_diego_brain_static_ips: ((pas_diego_brain_static_ips))
+      PAS_pas_gorouter_static_ips: ((pas_gorouter_static_ips))
+      PAS_pas_tcprouter_static_ips: ((pas_tcprouter_static_ips))
+      PAS_pas_product_glob: ((pas_product_glob))
+      PAS_pas_stemcell_slug: ((pas_stemcell_slug))
+      PAS_pas_stemcell_version: ((pas_stemcell_version))
+      PAS_pas_product_stemcell_glob: ((pas_product_stemcell_glob))
+      PAS_pas-ca-cert: ((pas-ca-cert))
+      PAS_pas-ca-cert-private-key: ((pas-ca-cert-private-key))
+      PAS_pas-uaa-ca-cert: ((pas-uaa-ca-cert))
+      PAS_pas-uaa-cert-private-key: ((pas-uaa-cert-private-key))
+
+- name: apply-pas-changes
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      trigger: true
+      passed: [configure-pas]
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: config-private
+  - task: apply-all-product-changes
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/apply-changes.yml
+    input_mapping:
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: upload-pas-windows
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      trigger: true
+      passed: [apply-pas-changes]
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: pas-windows-product
+    - get: config-private
+  - task: upload-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/upload-product.yml
+    input_mapping:
+      product: pas-windows-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+  - task: stage-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/stage-product.yml
+    input_mapping:
+      product: pas-windows-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: upload-stemcell-pas-windows
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      passed: [upload-pas-windows]
+      trigger: true
+
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: config-private
+    - get: pas-windows-stemcell
+  - task: upload-stemcell
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/upload-stemcell.yml
+    input_mapping:
+      env: config-private
+      stemcell: pas-windows-stemcell
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: configure-pas-windows
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      trigger: true
+      passed: [upload-stemcell-pas-windows]
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: config-private
+  - task: configure-product-pas-windows
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/configure-product.yml
+    input_mapping:
+      config: config-private
+      env: config-private
+    params:
+      CONFIG_FILE: config/pasw-config.yml
+      ENV_FILE: env/ops-man-env.yml
+
+- name: upload-spring-cloud-services
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      trigger: true
+      passed: [upload-stemcell-pas-windows]
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: spring-cloud-services-product
+    - get: config-private
+  - task: upload-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/upload-product.yml
+    input_mapping:
+      product: spring-cloud-services-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+  - task: stage-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/stage-product.yml
+    input_mapping:
+      product: spring-cloud-services-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: configure-spring-cloud-services
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      passed: [upload-spring-cloud-services]
+      trigger: true
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: config-private
+
+  - task: configure-spring-cloud-services
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/configure-scs.yml
+    input_mapping:
+      config: config-private
+      env: config-private
+    params:
+      SCS_scs_product_slug: ((scs_product_slug))
+      SCS_scs_product_version: ((scs_product_version))
+      SCS_scs_product_name: ((scs_product_name))
+      SCS_scs_config_server_access: ((scs_config_server_access))
+      SCS_scs_java_buildpack: ((scs_java_buildpack))
+      SCS_scs_network_name: ((scs_network_name))
+      SCS_scs_singleton_availability_zone: ((scs_singleton_availability_zone))
+      CONFIG_FILE: config/scs-config.yml
+      ENV_FILE: env/ops-man-env.yml
+
+- name: upload-pcf-metrics
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      trigger: true
+      passed: [upload-spring-cloud-services]
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: pcf-metrics-product
+    - get: config-private
+  - task: upload-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/upload-product.yml
+    input_mapping:
+      product: pcf-metrics-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+  - task: stage-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/stage-product.yml
+    input_mapping:
+      product: pcf-metrics-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: configure-pcf-metrics
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      passed: [upload-pcf-metrics]
+      trigger: true
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: config-private
+  - task: configure-pcf-metrics
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/configure-product.yml
+    input_mapping:
+      config: config-private
+      env: config-private
+    params:
+      CONFIG_FILE: config/metrics-config.yml
+      ENV_FILE: env/ops-man-env.yml
+
+- name: upload-pcf-healthwatch
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      trigger: true
+      passed: [upload-pcf-metrics]
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: pcf-healthwatch-product
+    - get: config-private
+  - task: upload-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/upload-product.yml
+    input_mapping:
+      product: pcf-healthwatch-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+  - task: stage-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/stage-product.yml
+    input_mapping:
+      product: pcf-healthwatch-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: upload-stemcell-pcf-healthwatch
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      passed: [upload-pcf-healthwatch]
+      trigger: true
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: config-private
+    - get: pcf-healthwatch-stemcell
+      params: 
+        globs: [((healthwatch_product_stemcell_glob))]
+  - task: upload-stemcell
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/upload-stemcell.yml
+    input_mapping:
+      env: config-private
+      stemcell: pcf-healthwatch-stemcell
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: configure-pcf-healthwatch
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      passed: [upload-stemcell-pcf-healthwatch]
+      trigger: true
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: config-private
+  - task: configure-pcf-healthwatch
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/configure-product.yml
+    input_mapping:
+      config: config-private
+      env: config-private
+    params:
+      CONFIG_FILE: config/healthwatch-config.yml
+      ENV_FILE: env/ops-man-env.yml
+
+- name: apply-all-other-product-changes
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      trigger: true
+      passed: [configure-pas-windows, configure-pcf-healthwatch, configure-pcf-metrics, configure-spring-cloud-services]
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: config-private
+  - task: apply-all-product-changes
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/apply-changes.yml
+    input_mapping:
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml

@@ -1,0 +1,37 @@
+product-name: ((scs_product_name))
+product-properties:
+  .properties.allow_paid_service_plans:
+    value: false
+  .properties.apply_open_security_group:
+    value: false
+  .properties.config_server_access:
+    value: ((scs_config_server_access))
+  .properties.java_buildpack:
+    value: ((scs_java_buildpack))
+  .properties.org:
+    value: p-spring-cloud-services
+  .properties.space:
+    value: p-spring-cloud-services
+  .properties.status_change_timeout_minutes:
+    value: 30
+network-properties:
+  network:
+    name: ((scs_network_name))
+  other_availability_zones:
+  - name: pas-az3
+  - name: pas-az2
+  - name: pas-az1
+  singleton_availability_zone:
+    name: ((scs_singleton_availability_zone))
+resource-config:
+  spring-cloud-services:
+    instances: automatic
+    persistent_disk:
+      size_mb: automatic
+    instance_type:
+      id: automatic
+errand-config:
+  destroy-brokers:
+    pre-delete-state: true
+  register-brokers:
+    post-deploy-state: true

@@ -1,0 +1,25 @@
+---
+opsman-configuration:
+  vsphere:
+    vcenter:
+      url: ((opsman_vcenter_url))
+      username: ((opsman_vcenter_username))
+      password: ((opsman_vcenter_password))
+      datastore: ((opsman_vcenter_datastore))
+      #ca_cert: certificate
+      #host: vcsa-01.haas-424.pez.pivotal.io
+      datacenter: ((opsman_vcenter_datacenter))
+      resource_pool: ((opsman_vcenter_resource_pool))
+      #folder: /Datacenter/vm/Folder
+      insecure: ((opsman_vcenter_insecure))                            # 1 insecure, 0 secure
+    disk_type: ((opsman_vcenter_disk_type))                           # example: thin|thick
+    private_ip: ((opsman_vcenter_private_ip))
+    dns: ((opsman_vcenter_dns))
+    ntp: ((opsman_vcenter_ntp))                     # example: ntp.ubuntu.com
+    ssh_password: ((opsman_vcenter_ssh_password)) 
+    #ssh_public_key: ssh-rsa ......           # for OpsManager >= 2.3
+    hostname: ((opsman_vcenter_opsmgr_hostname))
+    network: ((opsman_vcenter_network))              # vcenter network to deploy to
+    netmask: ((opsman_vcenter_netmask))
+    gateway: ((opsman_vcenter_gateway))
+    vm_name: ((opsman_vcenter_vm_name))

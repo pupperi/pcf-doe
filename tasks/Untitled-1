@@ -1,0 +1,48 @@
+curl "https://opsmgr-01.haas-450.pez.pivotal.io/api/v0/staged/products/cf-1ba85921649c2bc7d635/jobs/router-e064953b3f13e1dc83a6/resource\_config" \
+  -X PUT \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -d '{"instance_type": {"id": "automatic"},
+ "instances": 2,
+ "additional_vm_extensions": ["pas_web_vm_extension"]
+   }'
+
+
+curl "https://opsmgr-01.haas-450.pez.pivotal.io/api/v0/staged/products/cf-1ba85921649c2bc7d635/jobs/tcp_router-fde0a37c981b320e68f5/resource\_config" \
+  -X PUT \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -d '{"instance_type": {"id": "automatic"},
+ "instances": 1,
+ "additional_vm_extensions": ["pas_tcp_vm_extension"]
+   }'
+
+
+curl "https://opsmgr-01.haas-450.pez.pivotal.io/api/v0/staged/products/cf-1ba85921649c2bc7d635/jobs/diego_brain-dcab505c0d84011fe77c/resource\_config" \
+  -X PUT \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -d '{"instance_type": {"id": "automatic"},
+ "instances": 1,
+ "additional_vm_extensions": ["pas_ssh_vm_extension"]
+   }'
+
+curl "https://opsmgr-01.haas-450.pez.pivotal.io/api/v0/staged/vm_extensions" -X POST -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -d "$(cat ./web.json)" -k
+curl "https://opsmgr-01.haas-450.pez.pivotal.io/api/v0/staged/vm_extensions" -X POST -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -d "$(cat ./tcp.json)" -k
+curl "https://opsmgr-01.haas-450.pez.pivotal.io/api/v0/staged/vm_extensions" -X POST -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -d "$(cat ./ssh.json)" -k
+curl "https://opsmgr-01.haas-450.pez.pivotal.io/api/v0/staged/vm_extensions" -X POST -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/son" -d "$(cat ./web.json)" -k
+
+
+
+ovftool --acceptAllEulas -n=opsman --powerOn  -dm=thin -ds="LUN01" \
+       --net:"Network 1"="VM Network" \
+       --prop:ip0="192.168.1.10" \
+       --prop:netmask0="255.255.255.0" \
+       --prop:gateway="192.168.1.1" \
+       --prop:DNS="10.192.2.10" \
+       --prop:ntp_servers="time.svc.pivotal.io" \
+       --prop:admin_password="pivotal123" \
+       --prop:custom_hostname="opsmgr-01.haas-420.pez.pivotal.io" \
+       --noSSLVerify \
+        ${OVAFILE} \
+        vi://administrator@vsphere.local:VSvi4cVA93AiC6wZRk\!@vcsa-01.haas-420.pez.pivotal.io/Datacenter/host/Cluster

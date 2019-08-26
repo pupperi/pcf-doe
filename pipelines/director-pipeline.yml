@@ -1,0 +1,223 @@
+resource_types:
+- name: pivnet
+  type: docker-image
+  source:
+    repository: pivotalcf/pivnet-resource
+    tags: latest-final
+resources:
+# - name: daily
+#   type: time
+#   source:
+#     interval: 24h
+# - name: config
+#   type: git
+#   source:
+#     uri: ((configuration.uri))
+#     branch: master
+- name: config-private
+  type: git
+  source:
+    uri: ((configuration_private.uri))
+    branch: master
+    private_key: ((configuration_private.key))
+    username: ((configuration_private.username))
+    password: ((configuration_private.password))
+- name: opsman-product
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: ops-manager-vsphere-(.*)-build.*\.ova
+# - name: platform-automation-pivnet
+#   type: pivnet
+#   source:
+#     api_token: ((pivnet_token))
+#     product_slug: platform-automation
+#     product_version: 1\.(.*) # pin to major version 1
+#     sort_by: semver
+- name: platform-automation-tasks
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: platform-automation-tasks-(.*).zip
+- name: platform-automation-image
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: platform-automation-image-(.*).tgz
+# - name: one-time-trigger
+#   type: time
+#   source:
+#     interval: 999999h
+# jobs:
+# - name: fetch-healthwatch
+#   plan:
+#   - aggregate:
+#     - get: daily
+#       trigger: true
+#     - get: platform-automation-image
+#       passed: [fetch-platform-automation]
+#       params:
+#         unpack: true
+#     - get: platform-automation-tasks
+#       passed: [fetch-platform-automation]
+#       params:
+#         unpack: true
+#     - get: config
+#   - task: download-healthwatch-product-and-stemcell
+#     image: platform-automation-image
+#     file: platform-automation-tasks/tasks/download-product.yml
+#     params:
+#       CONFIG_FILE: download-product-configs/healthwatch.yml
+#     output_mapping: {downloaded-stemcell: healthwatch-stemcell}
+#   - aggregate:
+#     - put: healthwatch-product
+#       params:
+#         file: downloaded-product/*.pivotal
+#     - put: healthwatch-stemcell
+#       params:
+#         file: healthwatch-stemcell/*.tgz
+jobs:
+- name: install-opsman
+  plan:
+    - aggregate:
+        - get: platform-automation-image
+          params:
+            unpack: true
+        - get: platform-automation-tasks
+          params:
+            unpack: true
+        - get: opsman-product
+        - get: config-private
+    # - task: credhub-interpolate
+    #   image: platform-automation-image
+    #   file: platform-automation-tasks/tasks/credhub-interpolate.yml
+    #   params:
+    #     CREDHUB_CLIENT: ((credhub-client))
+    #     CREDHUB_SECRET: ((credhub-secret))
+    #     CREDHUB_SERVER: ((credhub-server))
+    #     CREDHUB_CA_CERT: ((credhub-ca-cert))
+    #     PREFIX: '/pipeline/nonprod'
+    #     INTERPOLATION_PATH: ((foundation))/vars/vars
+    #   input_mapping:
+    #     files: variable
+    #   output_mapping:
+    #     interpolated-files: variable
+    - task: create-vm
+      image: platform-automation-image
+      file: platform-automation-tasks/tasks/create-vm.yml
+      input_mapping:
+        image: opsman-product
+        state: config-private
+        config: config-private
+        #vars: config-private
+      params:
+        #VARS_FILES: config/vars/vars-private.yml
+        OPSMAN_CONFIG_FILE: config/opsman.yml
+      on_success:
+        do:
+          - task: make-commit
+            image: platform-automation-image
+            file: platform-automation-tasks/tasks/make-git-commit.yml
+            input_mapping:
+              repository: config-private
+              file-source: generated-state
+            output_mapping:
+              repository-commit: configuration-commit
+            params:
+              FILE_SOURCE_PATH: state.yml
+              FILE_DESTINATION_PATH: state/state.yml
+              GIT_AUTHOR_EMAIL: "platform-automation-pipeline-bot@example.com"
+              GIT_AUTHOR_NAME: "Platform Automation Bot"
+              COMMIT_MESSAGE: 'Update state file'
+          - put: config-private
+            params:
+              repository: configuration-commit
+              merge: true
+    - task: configure-authentication
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/configure-authentication.yml
+    input_mapping:
+      config: config
+      env: env
+    params:
+      ENV_FILE: config/opsman.yml
+      AUTH_CONFIG_FILE: config/vars/opsman-vars.yml
+    attempts: 20
+    - task: extract-staged-director-config-template
+      image: platform-automation-image
+      file: platform-automation-tasks/tasks/staged-director-config.yml
+      input_mapping:
+        env: config-private
+      params:
+        ENV_FILE: env/ops-man-env.yml
+    - task: make-commit
+      image: platform-automation-image
+      file: platform-automation-tasks/tasks/make-git-commit.yml
+      input_mapping:
+        repository: config-private
+        file-source: generated-config
+      output_mapping:
+        repository-commit: configuration-commit
+      params:
+        FILE_SOURCE_PATH: director.yml
+        FILE_DESTINATION_PATH: generated-config/director.yml
+        GIT_AUTHOR_EMAIL: "platform-automation-pipeline-bot@example.com"
+        GIT_AUTHOR_NAME: "Platform Automation Bot"
+        COMMIT_MESSAGE: "Add or update product config: director"
+    - put: config-private
+      params:
+        repository: configuration-commit
+        merge: true
+- name: configure-director
+  serial: true
+  plan:
+  - aggregate:
+    - get: platform-automation-image
+      passed: [install-opsman]
+      trigger: true
+      params: {unpack: true}
+    - get: platform-automation-tasks
+      params: {unpack: true}
+      passed: [install-opsman]
+    - get: config-private
+      passed: [install-opsman]
+  - task: configure-director
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/configure-director.yml
+    input_mapping:
+      config: config-private
+      env: config-private
+      # vars: interpolated-files
+    params:
+      ENV_FILE: env/ops-man-env.yml
+      DIRECTOR_CONFIG_FILE: config/director.yml
+      # VARS_FILES: vars/((foundation))/vars/director.yml
+- name: apply-changes-director
+  serial: true
+  plan:
+  - aggregate:
+    - get: platform-automation-image
+      trigger: true
+      passed: [configure-director]
+      params: {unpack: true}
+    - get: platform-automation-tasks
+      params: {unpack: true}
+      passed: [configure-director]
+    - get: config-private
+      passed: [configure-director]
+  - task: apply-director-changes
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/apply-director-changes.yml
+    input_mapping:
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml

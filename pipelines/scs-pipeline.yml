@@ -1,0 +1,128 @@
+resource_types:
+- name: pivnet
+  type: docker-image
+  source:
+    repository: pivotalcf/pivnet-resource
+    tags: latest-final
+
+resources:
+- name: config-private
+  type: git
+  source:
+    uri: ((github.uri))
+    branch: master
+    private_key: ((github.key))
+
+- name: spring-cloud-services-product
+  type: pivnet
+  source:
+    api_token: ((pivnet_token))
+    product_slug: ((scs_product_slug))
+    product_version: ((scs_product_version))
+    params: {globs: ["*.ova"]}
+
+- name: platform-automation-tasks
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: platform-automation-tasks-(.*).zip
+
+- name: platform-automation-image
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: platform-automation-image-(.*).tgz
+
+jobs:
+- name: upload-spring-cloud-services
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      trigger: false
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: spring-cloud-services-product
+    - get: config-private
+
+  - task: upload-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/upload-product.yml
+    input_mapping:
+      product: spring-cloud-services-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+  - task: stage-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/stage-product.yml
+    input_mapping:
+      product: spring-cloud-services-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: configure-product-spring-cloud-services
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      params: 
+        unpack: true
+        globs: ["*.tgz"]
+      passed: [upload-spring-cloud-services]
+      trigger: false
+    - get: platform-automation-tasks
+      params: 
+        unpack: true
+        globs: ["*.zip"]
+    - get: config-private
+
+  - task: configure-spring-cloud-services
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/configure-scs.yml  
+    input_mapping:
+      config: config-private
+      env: config-private
+      name: config/scs-config.yml
+    params:
+      BASE_product_name: ((product_name))
+      SCS_scs_product_slug: ((scs_product_slug))
+      SCS_scs_product_version: ((scs_product_version))
+      SCS_scs_product_name: ((scs_product_name))
+      SCS_scs_config_server_access: ((scs_config_server_access))
+      SCS_scs_java_buildpack: ((scs_java_buildpack))
+      SCS_scs_network_name: ((scs_network_name))
+      SCS_scs_singleton_availability_zone: ((scs_singleton_availability_zone))
+      CONFIG_FILE: config/scs-config.yml
+      ENV_FILE: env/ops-man-env.yml
+
+- name: apply-scs-product-changes
+  serial: true
+  plan:
+  - in_parallel:
+    - get: platform-automation-image
+      trigger: false
+      passed: [configure-product-spring-cloud-services]
+      params: {unpack: true}
+    - get: platform-automation-tasks
+      params: {unpack: true}
+    - get: config-private
+  - task: apply-changes
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/apply-changes.yml
+    input_mapping:
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml

@@ -1,0 +1,122 @@
+s3:
+  access_key_id: xxxxxxxxxxxxxxx
+  secret_access_key: xxxxxxxxxxxxxxx
+  region_name: us-east-1
+  buckets:
+    pivnet_products: doe-pas
+
+pivnet_token: xxxxxxxxxxxxxxx
+
+opsman_major_minor_version: 2.5.1
+
+github:
+  uri: git@github.com:username/pcf-automation.git
+  key: |
+
+platform_automation_version: 3.0.1
+
+foundation: doe-pas
+
+#opsman config
+opsman_product_slug: ops-manager
+opsman_product_version: 2.5.1
+opsman_product_glob: ops-manager-vsphere-2.5.1-build.169.ova
+opsman_vcenter_url: vcsa-01.example.com
+opsman_vcenter_username: administrator@vsphere.local
+opsman_vcenter_password: xxxxxxxxxxxxxxx
+opsman_vcenter_datastore: LUN01
+opsman_vcenter_datacenter: Datacenter
+opsman_vcenter_resource_pool: /Datacenter/host/Cluster
+opsman_vcenter_insecure: 1
+opsman_vcenter_disk_type: thin
+opsman_vcenter_private_ip: 192.168.1.10
+opsman_vcenter_dns: xx.xx.xx.xx,xx.xx.xx.xx
+opsman_vcenter_ntp: time.example.com
+opsman_vcenter_ssh_password: pivotal123
+opsman_vcenter_opsmgr_hostname: opsmgr-01.example.com
+opsman_vcenter_network: PAS-Infrastructure
+opsman_vcenter_netmask: 255.255.255.0
+opsman_vcenter_gateway: 192.168.1.1
+opsman_vcenter_vm_name: ops-manager-vm 
+
+#Bosh Directory config
+bosh_ntp_servers: time.example.com
+bosh_dns_servers: xx.xx.xx.xx,xx.xx.xx.xx
+bosh_disk_path: bosh_disks
+bosh_template_folder: bosh_templates
+bosh_vm_folder: bosh_vms
+bosh_datacenter: Datacenter
+bosh_disk_type: thin
+bosh_ephemeral_datastores_string: LUN01
+bosh_nsx_address: nsxmgr-01.example.com
+bosh_nsx_ca_certificate: |
+bosh_nsx_mode: nsx-t
+bosh_nsx_networking_enabled: true
+bosh_nsx_username: admin
+bosh_nsx_password: xxxxxxxxxxxxxxx
+bosh_persistent_datastores_string: LUN01
+bosh_ssl_verification_enabled: false
+bosh_vcenter_host: vcsa-01.example.com
+bosh_vcenter_username: administrator@vsphere.local
+bosh_vcenter_password: xxxxxxxxxxxxxxx
+bosh_opsman_trusted_certificate: |
+  
+#pas product config
+pas_product_slug: cf
+pas_product_version: 2.5.1
+pas_apps_domain: cfapps.example.com
+pas_system_domain: run.example.com
+pas_cni_plugin: silk
+pas_credhub_database: internal_mysql
+pas_uaa_database: internal_mysql
+pas_diego_brain_static_ips: 192.168.2.13
+pas_gorouter_static_ips: 192.168.2.11,192.168.2.12
+pas_tcprouter_static_ips: 192.168.2.14
+pas_product_glob: cf-2.5.1-build.5.pivotal
+pas_stemcell_slug: stemcells-ubuntu-xenial
+pas_stemcell_version: "250.29"
+pas_product_stemcell_glob: "bosh-stemcell-250.29-vsphere-esxi-ubuntu-xenial-go_agent.tgz"
+pas-ca-cert: |
+pas-ca-cert-private-key: |
+pas-uaa-ca-cert: |
+pas-uaa-cert-private-key: |
+
+#pasw product config
+pasw_product_slug: pas-windows
+pasw_product_version: 2.4.6
+pasw_product_glob: pas-windows-2.4.6-build.1.pivotal
+pasw_product_stemcell_glob: "bosh-stemcell-1803.11-vsphere-esxi-windows1803-go_agent.tgz"
+pasw_windows_admin_password: pivotal123
+pasw_network_name: PAS-Deployment
+
+#Healthwatch product details
+healthwatch_product_slug: p-healthwatch
+healthwatch_product_version: 1.5.2
+healthwatch_product_glob: p-healthwatch-(.*).pivotal
+healthwatch_stemcell_slug: stemcells-ubuntu-xenial
+healthwatch_stemcell_version: "170.51"
+healthwatch_product_stemcell_glob: "bosh-stemcell-170.51-vsphere-esxi-ubuntu-xenial-go_agent.tgz"
+
+#PCF Metrics product details
+metrics_product_slug: apm
+metrics_product_version: 1.6.0
+metrics_product_glob: apm-(.*)-build.(.*).pivotal
+
+#SCS Product Params
+scs_product_slug: p-spring-cloud-services
+scs_product_version: 3.0.3
+scs_product_name: p_spring-cloud-services
+scs_config_server_access: global
+scs_java_buildpack: java_buildpack_offline
+scs_network_name: PAS-Services
+scs_singleton_availability_zone: pas-az1
+
+#Isolation Segment product config
+isoseg_product_slug: p-isolation-segment
+isoseg_product_version: 2.5.7
+isoseg_product_glob: p-isolation-segment-2.5.7-build.22.pivotal
+
+#nsxt product config
+nsxt_product_slug: VMware-NSX-T
+nsxt_product_version: 2.4.1
+nsxt_product_glob: "VMware-NSX-T-2.4.1.13515827.pivotal"

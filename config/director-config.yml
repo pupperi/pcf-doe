@@ -1,0 +1,141 @@
+az-configuration:
+- name: pas-az3
+  clusters:
+  - cluster: Cluster
+    resource_pool: pas-az3
+- name: pas-az2
+  clusters:
+  - cluster: Cluster
+    resource_pool: pas-az2
+- name: pas-az1
+  clusters:
+  - cluster: Cluster
+    resource_pool: pas-az1
+network-assignment:
+  network:
+    name: PAS-Infrastructure
+  other_availability_zones: []
+  singleton_availability_zone:
+    name: pas-az1
+networks-configuration:
+  icmp_checks_enabled: false
+  networks:
+  - name: PAS-Infrastructure
+    subnets:
+    - iaas_identifier: PAS-Infrastructure
+      cidr: 192.168.1.0/24
+      dns: ((bosh_dns_servers))
+      gateway: 192.168.1.1
+      reserved_ip_ranges: 192.168.1.1-192.168.1.10
+      availability_zone_names:
+      - pas-az3
+      - pas-az2
+      - pas-az1
+  - name: PAS-Deployment
+    subnets:
+    - iaas_identifier: PAS-Deployment
+      cidr: 192.168.2.0/24
+      dns: ((bosh_dns_servers))
+      gateway: 192.168.2.1
+      reserved_ip_ranges: 192.168.2.1-192.168.2.10
+      availability_zone_names:
+      - pas-az3
+      - pas-az2
+      - pas-az1
+  - name: PAS-Services
+    subnets:
+    - iaas_identifier: PAS-Services
+      cidr: 192.168.3.0/24
+      dns: ((bosh_dns_servers))
+      gateway: 192.168.3.1
+      reserved_ip_ranges: 192.168.3.1-192.168.3.10
+      availability_zone_names:
+      - pas-az3
+      - pas-az2
+      - pas-az1
+  - name: PAS-ISO-Segment
+    subnets:
+    - iaas_identifier: PAS-ISO-Segment1
+      cidr: 192.168.50.0/24
+      dns: ((bosh_dns_servers))
+      gateway: 192.168.50.1
+      reserved_ip_ranges: 192.168.50.1-192.168.50.10
+      availability_zone_names:
+      - pas-az3
+      - pas-az2
+      - pas-az1
+properties-configuration:
+  director_configuration:
+    blobstore_type: local
+    bosh_recreate_on_next_deploy: false
+    bosh_recreate_persistent_disks_on_next_deploy: false
+    database_type: internal
+    director_worker_count: 5
+    encryption:
+      keys: []
+      providers: []
+    hm_emailer_options:
+      enabled: false
+    hm_pager_duty_options:
+      enabled: false
+    identification_tags: {}
+    job_configuration_on_tmpfs: false
+    keep_unreachable_vms: false
+    local_blobstore_options:
+      tls_enabled: false
+    ntp_servers_string: ((bosh_ntp_servers))
+    post_deploy_enabled: true
+    resurrector_enabled: true
+    retry_bosh_deploys: false
+    skip_director_drain: false
+  dns_configuration:
+    excluded_recursors: []
+    handlers: []
+  iaas_configuration:
+    additional_cloud_properties: {}
+    bosh_disk_path: ((bosh_disk_path))
+    bosh_template_folder: ((bosh_template_folder))
+    bosh_vm_folder: ((bosh_vm_folder))
+    datacenter: ((bosh_datacenter))
+    disk_type: ((bosh_disk_type))
+    ephemeral_datastores_string: ((bosh_ephemeral_datastores_string))
+    name: default
+    nsx_address: ((bosh_nsx_address))
+    nsx_ca_certificate: ((bosh_nsx_ca_certificate))
+    nsx_mode: ((bosh_nsx_mode))
+    nsx_networking_enabled: ((bosh_nsx_networking_enabled))
+    nsx_username: ((bosh_nsx_username))
+    nsx_password: ((bosh_nsx_password))
+    persistent_datastores_string: ((bosh_persistent_datastores_string))
+    ssl_verification_enabled: ((bosh_ssl_verification_enabled))
+    vcenter_host: ((bosh_vcenter_host))
+    vcenter_username: ((bosh_vcenter_username))
+    vcenter_password: ((bosh_vcenter_password))
+  security_configuration:
+    generate_vm_passwords: true
+    opsmanager_root_ca_trusted_certs: true
+    trusted_certificates: ((bosh_opsman_trusted_certificate))
+  syslog_configuration:
+    enabled: false
+resource-configuration:
+  compilation:
+    instances: automatic
+    instance_type:
+      id: automatic
+  director:
+    instances: automatic
+    persistent_disk:
+      size_mb: automatic
+    instance_type:
+      id: automatic
+vmextensions-configuration:
+- name: pas_gorouter_lb
+  cloud_properties:
+    nsxt:
+      lb:
+        server_pools:
+        - name: PAS-GoRouter443ServerPool
+          port: 443
+        - name: PAS-GoRouter80ServerPool
+          port: 80
+

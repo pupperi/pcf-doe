@@ -1,0 +1,64 @@
+product-name: VMware-NSX-T
+product-properties:
+  .properties.container_ip_blocks:
+    value:
+    - cidr: null
+      name: PAS-Org-IPs
+  .properties.enable_snat:
+    value: true
+  .properties.exit_on_disconnection:
+    selected_option: enable
+    value: enable
+  .properties.external_ip_pools:
+    value:
+    - allocation_ranges: null
+      cidr: null
+      name: external-ip-pool
+  .properties.foundation_name:
+    value: PAS-
+  .properties.log_dropped_traffic:
+    value: true
+  .properties.ncp_debug_log:
+    value: true
+  .properties.nsx_api_ca_cert:
+    value: |
+      -----BEGIN CERTIFICATE-----
+      MIIDljCCAn6gAwIBAgIGAWuvL4w2MA0GCSqGSIb3DQEBCwUAMIGLMSowKAYDVQQD
+      DCFuc3htZ3ItMDEuaGFhcy0yMjEucGV6LnBpdm90YWwuaW8xHTAbBgNVBAoMFFBp
+      dm90YWwgU29mdHdhcmUgSW5jMQwwCgYDVQQLDANQRVoxCzAJBgNVBAYTAlVTMQsw
+      CQYDVQQIDAJDQTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzAeFw0xOTA3MDEyMDE3
+      MzdaFw0yOTA2MjgyMDE3MzdaMIGLMSowKAYDVQQDDCFuc3htZ3ItMDEuaGFhcy0y
+      MjEucGV6LnBpdm90YWwuaW8xHTAbBgNVBAoMFFBpdm90YWwgU29mdHdhcmUgSW5j
+      MQwwCgYDVQQLDANQRVoxCzAJBgNVBAYTAlVTMQswCQYDVQQIDAJDQTEWMBQGA1UE
+      BwwNU2FuIEZyYW5jaXNjbzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB
+      AMNd5lMF/p7foOJxCLWvuaTvHcGJrRsq032AzEA1AYSmfwTnxJTCsxEJhy3772qY
+      tL7//YMLjw7hCkPKvCuSLeM++fflV8y7eHix6bqtJve1xi5GNdmjs2yocVHyDE4w
+      yLPDKiDhX8J9yD9LrwI9JOp3nBaJpW5JBoJPZbkrnRV47cI+F87ZS38/5Z+EWEeU
+      qLiFwqA/JUkEcOl6sxLfHvQIkPOJH0dJcbv68oOlHqVXBDa7LKbRAiW4Uz0HD/VU
+      i/PUcycPGS7vCJsEPXcQ8/5b9smGLZTf+bXSU7xC44iNURXoBlD4T2ECmnukv4SE
+      mi/t2jBp75+mIOWEUp9Vyh0CAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAej4gMw6I
+      3PFbHdWpz+HMLPH34ov8Rf9JJaRrIerkMe6OKJmssTVfSxGJnxXF53cHtyBKw5mP
+      SEiJ3vj8pjibcr0Y6aJBbvRo3fCj9ssQCvM9qxwCWRtbu3pgQVd2Y1UshLThEMCE
+      Gr3khxPaNAQl+qHQ1KgTxm0LiNjIG5uhXiuVp2EJLWrOcgNo1sHRuDQdLi/XVyLM
+      wBFJ8OFxpML5ZI3FILLH+xpcfYQ9uMYweyDnl5pLUasxlRqGc9KObTQ5fbsX+JBx
+      Ddu+FbaIBDaNOAFAZZA8MhcPtTbTMpnqs31u1FO2bu7K7THoU68T/68lJ/h8Dsh1
+      ELDVBMOGNEmnSw==
+      -----END CERTIFICATE-----
+  .properties.nsx_api_managers:
+    value: nsxmgr-01.haas-221.pez.pivotal.io
+  .properties.nsx_auth:
+    selected_option: simple
+    value: simple
+  .properties.nsx_auth.simple.nsx_api_password:
+    value:
+      secret: 5bxXaUMog7nUKqtdV3!
+  .properties.nsx_auth.simple.nsx_api_user:
+    value: admin
+  .properties.nsx_node_agent_debug_log:
+    value: false
+  .properties.overlay_tz:
+    value: overlay-tz
+  .properties.subnet_prefix:
+    value: 24
+  .properties.tier0_router:
+    value: T0-Router

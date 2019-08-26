@@ -1,0 +1,151 @@
+resource_types:
+- name: pivnet
+  type: docker-image
+  source:
+    repository: pivotalcf/pivnet-resource
+    tags: latest-final
+
+resources:
+- name: config-private
+  type: git
+  source:
+    uri: ((configuration_private.uri))
+    branch: master
+    private_key: ((configuration_private.key))
+    username: ((configuration_private.username))
+    password: ((configuration_private.password))
+
+- name: pcf-healthwatch-product
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: p-healthwatch-(.*).pivotal
+
+- name: pcf-healthwatch-stemcell
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: bosh-stemcell-(170.48)-vsphere.*\.tgz
+
+- name: platform-automation-tasks
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: platform-automation-tasks-(.*).zip
+
+- name: platform-automation-image
+  type: s3
+  source:
+    access_key_id: ((s3.access_key_id))
+    bucket: ((s3.buckets.pivnet_products))
+    region_name: ((s3.region_name))
+    secret_access_key: ((s3.secret_access_key))
+    regexp: platform-automation-image-(.*).tgz
+
+jobs:
+- name: install-pcf-healthwatch
+  serial: true
+  plan:
+  - aggregate:
+    - get: platform-automation-image
+      params: {unpack: true}
+      trigger: true
+    - get: platform-automation-tasks
+      params: {unpack: true}
+    - get: pcf-healthwatch-product
+    - get: config-private
+  # - task: credhub-interpolate
+  #   <<: *credhub-interpolate
+  - task: upload-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/upload-product.yml
+    input_mapping:
+      product: pcf-healthwatch-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+  - task: stage-product
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/stage-product.yml
+    input_mapping:
+      product: pcf-healthwatch-product
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: upload-stemcell-pcf-healthwatch
+  serial: true
+  plan:
+  - aggregate:
+    - get: platform-automation-image
+      params: {unpack: true}
+      passed: [install-pcf-healthwatch]
+      trigger: true
+    - get: platform-automation-tasks
+      params: {unpack: true}
+      passed: [install-pcf-healthwatch]
+    - get: config-private
+      passed: [install-pcf-healthwatch]
+    - get: pcf-healthwatch-stemcell
+  # - task: credhub-interpolate
+  #   <<: *credhub-interpolate
+  - task: upload-stemcell
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/upload-stemcell.yml
+    input_mapping:
+      env: config-private
+      stemcell: pcf-healthwatch-stemcell
+    params:
+      ENV_FILE: env/ops-man-env.yml
+
+- name: configure-product-pcf-healthwatch
+  serial: true
+  plan:
+  - aggregate:
+    - get: platform-automation-image
+      params: {unpack: true}
+      passed: [upload-stemcell-pcf-healthwatch]
+    - get: platform-automation-tasks
+      params: {unpack: true}
+    - get: config-private
+  # - task: credhub-interpolate
+  #   <<: *credhub-interpolate
+  - task: configure-pcf-healthwatch
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/configure-product.yml
+    input_mapping:
+      config: config-private
+      env: config-private
+      #vars: config-private
+    params:
+      CONFIG_FILE: config/pcf-healthwatch.yml
+      #VARS_FILES: vars/((foundation))/vars/((products.pas.product_slug)).yml
+      ENV_FILE: env/ops-man-env.yml
+
+- name: apply-pcf-healthwatch-product-changes
+  serial: true
+  plan:
+  - aggregate:
+    - get: platform-automation-image
+      trigger: true
+      passed: [configure-product-pcf-healthwatch]
+      params: {unpack: true}
+    - get: platform-automation-tasks
+      params: {unpack: true}
+    - get: config-private
+  - task: apply-changes
+    image: platform-automation-image
+    file: platform-automation-tasks/tasks/apply-changes.yml
+    input_mapping:
+      env: config-private
+    params:
+      ENV_FILE: env/ops-man-env.yml
