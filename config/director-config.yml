@@ -1,15 +1,15 @@
 az-configuration:
 - name: pas-az3
   clusters:
-  - cluster: Cluster
+  - cluster: VxRail-Virtual-SAN-Datastore-8456c8e3-a8d8-46b3-bae6-fba3c4aea49b
     resource_pool: pas-az3
 - name: pas-az2
   clusters:
-  - cluster: Cluster
+  - cluster: VxRail-Virtual-SAN-Datastore-8456c8e3-a8d8-46b3-bae6-fba3c4aea49b
     resource_pool: pas-az2
 - name: pas-az1
   clusters:
-  - cluster: Cluster
+  - cluster: VxRail-Virtual-SAN-Datastore-8456c8e3-a8d8-46b3-bae6-fba3c4aea49b
     resource_pool: pas-az1
 network-assignment:
   network:
@@ -49,17 +49,6 @@ networks-configuration:
       dns: ((bosh_dns_servers))
       gateway: 192.168.3.1
       reserved_ip_ranges: 192.168.3.1-192.168.3.10
-      availability_zone_names:
-      - pas-az3
-      - pas-az2
-      - pas-az1
-  - name: PAS-ISO-Segment
-    subnets:
-    - iaas_identifier: PAS-ISO-Segment1
-      cidr: 192.168.50.0/24
-      dns: ((bosh_dns_servers))
-      gateway: 192.168.50.1
-      reserved_ip_ranges: 192.168.50.1-192.168.50.10
       availability_zone_names:
       - pas-az3
       - pas-az2
