@@ -348,7 +348,7 @@ resource-config:
   cloud_controller:
     instances: automatic
     instance_type:
-      id: automatic
+      id: xlarge
   cloud_controller_worker:
     instances: automatic
     instance_type:
@@ -364,7 +364,7 @@ resource-config:
   diego_cell:
     instances: 3
     instance_type:
-      id: automatic
+      id: 2xlarge
   diego_database:
     instances: automatic
     instance_type:
@@ -420,7 +420,7 @@ resource-config:
   router:
     instances: 2
     instance_type:
-      id: automatic
+      id: large.disk
     additional_vm_extensions:
     - pas_gorouter_lb
   syslog_adapter:
